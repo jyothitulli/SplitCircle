@@ -1,0 +1,247 @@
+// SplitCircle MVP — Prisma Schema (Phase 2)
+// Domain: Users, Circles, Members, Expenses, ExpenseParticipants, Settlements.
+// Designed for PostgreSQL with UUID PKs and engine-ready indexes.
+
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "debian-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------------------
+// Enums
+// ---------------------------------------------------------------------------
+
+/// Role of a user within a specific circle.
+enum MemberRole {
+  OWNER
+  ADMIN
+  MEMBER
+}
+
+/// How an expense total is divided among participants.
+/// The Balance Engine always reads final per-user amounts from ExpenseParticipant.
+enum SplitMethod {
+  EQUAL
+  PERCENTAGE
+  CUSTOM
+}
+
+/// Lifecycle of a debt-clearing settlement between two circle members.
+enum SettlementStatus {
+  PENDING
+  COMPLETED
+}
+
+// ---------------------------------------------------------------------------
+// Models
+// ---------------------------------------------------------------------------
+
+/// A registered user account. Global identity across all circles.
+model User {
+  id           String   @id @default(uuid()) @db.Uuid
+  name         String
+  email        String   @unique
+  passwordHash String
+  avatarUrl    String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  memberships         Member[]
+  createdCircles      Circle[]             @relation("CircleCreator")
+  expensesPaid        Expense[]            @relation("ExpensePayer")
+  expenseShares       ExpenseParticipant[]
+  settlementsSent     Settlement[]         @relation("SettlementFrom")
+  settlementsReceived Settlement[]         @relation("SettlementTo")
+  choreAssignments    ChoreAssignment[]
+  fairnessScores      FairnessScore[]
+
+  @@map("users")
+}
+
+/// A shared-living group (household). Scopes expenses, members, and settlements.
+model Circle {
+  id          String   @id @default(uuid()) @db.Uuid
+  name        String
+  description String?
+  /// Shareable code used to join the circle (Phase 5 invite flow).
+  inviteCode  String   @unique @default(uuid())
+  createdById String   @db.Uuid
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  createdBy   User         @relation("CircleCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  members     Member[]
+  expenses    Expense[]
+  settlements Settlement[]
+  chores      Chore[]
+  fairnessScores FairnessScore[]
+
+  @@index([createdById])
+  @@map("circles")
+}
+
+/// Join table: which users belong to which circles and their role within each.
+model Member {
+  id        String     @id @default(uuid()) @db.Uuid
+  userId    String     @db.Uuid
+  circleId  String     @db.Uuid
+  role      MemberRole @default(MEMBER)
+  joinedAt  DateTime   @default(now())
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  circle Circle @relation(fields: [circleId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, circleId])
+  @@index([circleId])
+  @@index([userId])
+  @@map("members")
+}
+
+/// A single shared cost within a circle (e.g. "Groceries — ₹2,400").
+model Expense {
+  id          String      @id @default(uuid()) @db.Uuid
+  circleId    String      @db.Uuid
+  paidById    String      @db.Uuid
+  description String
+  amount      Decimal     @db.Decimal(10, 2)
+  splitMethod SplitMethod @default(EQUAL)
+  expenseDate DateTime    @default(now())
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  circle       Circle               @relation(fields: [circleId], references: [id], onDelete: Cascade)
+  paidBy       User                 @relation("ExpensePayer", fields: [paidById], references: [id], onDelete: Restrict)
+  participants ExpenseParticipant[]
+
+  @@index([circleId])
+  @@index([paidById])
+  @@index([circleId, expenseDate])
+  @@map("expenses")
+}
+
+/// Final per-user share of an expense. Source of truth for the Balance Engine.
+model ExpenseParticipant {
+  id              String   @id @default(uuid()) @db.Uuid
+  expenseId       String   @db.Uuid
+  userId          String   @db.Uuid
+  shareAmount     Decimal  @db.Decimal(10, 2)
+  /// Populated only when parent Expense.splitMethod == PERCENTAGE.
+  sharePercentage Decimal? @db.Decimal(5, 2)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  expense Expense @relation(fields: [expenseId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([expenseId, userId])
+  @@index([userId])
+  @@index([expenseId])
+  @@map("expense_participants")
+}
+
+/// A debt-clearing payment from one member to another within a circle.
+/// Generated and tracked by the Settlement Engine (Phase 8).
+model Settlement {
+  id         String           @id @default(uuid()) @db.Uuid
+  circleId   String           @db.Uuid
+  fromUserId String           @db.Uuid
+  toUserId   String           @db.Uuid
+  amount     Decimal          @db.Decimal(10, 2)
+  status     SettlementStatus @default(PENDING)
+  settledAt  DateTime?
+  createdAt  DateTime         @default(now())
+  updatedAt  DateTime         @updatedAt
+
+  circle   Circle @relation(fields: [circleId], references: [id], onDelete: Cascade)
+  fromUser User   @relation("SettlementFrom", fields: [fromUserId], references: [id], onDelete: Restrict)
+  toUser   User   @relation("SettlementTo", fields: [toUserId], references: [id], onDelete: Restrict)
+
+  @@index([circleId])
+  @@index([fromUserId])
+  @@index([toUserId])
+  @@index([circleId, status])
+  @@map("settlements")
+}
+
+// ---------------------------------------------------------------------------
+// Chore Management Models
+// ---------------------------------------------------------------------------
+
+enum ChoreRecurrence {
+  DAILY
+  WEEKLY
+  MONTHLY
+}
+
+enum ChoreStatus {
+  PENDING
+  COMPLETED
+  MISSED
+}
+
+/// A chore definition scoped to a circle. Can be one-time or recurring.
+model Chore {
+  id                 String           @id @default(uuid()) @db.Uuid
+  circleId           String           @db.Uuid
+  title              String
+  description        String?
+  isRecurring        Boolean          @default(false)
+  recurrenceInterval ChoreRecurrence?
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+
+  circle             Circle           @relation(fields: [circleId], references: [id], onDelete: Cascade)
+  assignments        ChoreAssignment[]
+
+  @@index([circleId])
+  @@map("chores")
+}
+
+/// A specific chore instance assigned to a user for a due date.
+model ChoreAssignment {
+  id          String      @id @default(uuid()) @db.Uuid
+  choreId     String      @db.Uuid
+  userId      String      @db.Uuid
+  dueDate     DateTime
+  status      ChoreStatus @default(PENDING)
+  completedAt DateTime?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  chore       Chore       @relation(fields: [choreId], references: [id], onDelete: Cascade)
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([choreId])
+  @@index([userId])
+  @@index([dueDate])
+  @@index([status])
+  @@map("chore_assignments")
+}
+
+/// A user's aggregated fairness scores in a specific circle.
+model FairnessScore {
+  id                 String   @id @default(uuid()) @db.Uuid
+  circleId           String   @db.Uuid
+  userId             String   @db.Uuid
+  expenseScore       Decimal  @db.Decimal(5, 2)
+  choreScore         Decimal  @db.Decimal(5, 2)
+  participationScore Decimal  @db.Decimal(5, 2)
+  overallScore       Decimal  @db.Decimal(5, 2)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  circle             Circle   @relation(fields: [circleId], references: [id], onDelete: Cascade)
+  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([circleId, userId])
+  @@index([circleId])
+  @@index([userId])
+  @@map("fairness_scores")
+}

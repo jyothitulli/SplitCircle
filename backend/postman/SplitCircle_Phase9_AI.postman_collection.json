@@ -1,0 +1,507 @@
+{
+  "info": {
+    "name": "SplitCircle Phase 9 — AI Features",
+    "description": "Phase 9A: OCR Receipt Scanning | Phase 9B: Voice Expense Logging | Phase 9C: AI Insights | Phase 9D: Conflict Prediction",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:5000", "type": "string" },
+    { "key": "authToken", "value": "", "type": "string" },
+    { "key": "circleId", "value": "", "type": "string" }
+  ],
+  "item": [
+    {
+      "name": "🔐 Auth — Login (get token first)",
+      "request": {
+        "method": "POST",
+        "url": "{{baseUrl}}/api/auth/login",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"user@example.com\",\n  \"password\": \"Password123!\"\n}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "const res = pm.response.json();",
+              "if (res.data?.token) {",
+              "  pm.collectionVariables.set('authToken', res.data.token);",
+              "  console.log('Token saved:', res.data.token.slice(0, 20) + '...');",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "📷 Phase 9A — OCR Receipt Scanning",
+      "item": [
+        {
+          "name": "9A-1: Scan Receipt (happy path)",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/ocr/receipt",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{authToken}}" }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "receipt",
+                  "type": "file",
+                  "src": "/path/to/your/receipt.jpg",
+                  "description": "Upload a JPEG/PNG receipt image"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test('success true', () => pm.expect(body.success).to.be.true);",
+                  "pm.test('draft object present', () => pm.expect(body.data.draft).to.be.an('object'));",
+                  "pm.test('imageUrl is a string', () => pm.expect(body.data.draft.imageUrl).to.be.a('string'));",
+                  "pm.test('confidence is a number', () => pm.expect(body.data.draft.confidence).to.be.a('number'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "9A-2: No file attached → 400",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/ocr/receipt",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{authToken}}" }
+            ],
+            "body": { "mode": "formdata", "formdata": [] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 400', () => pm.response.to.have.status(400));",
+                  "const body = pm.response.json();",
+                  "pm.test('success false', () => pm.expect(body.success).to.be.false);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "9A-3: Invalid file type (txt) → 400",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/ocr/receipt",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{authToken}}" }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "receipt",
+                  "type": "file",
+                  "src": "/path/to/file.txt"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 400', () => pm.response.to.have.status(400));",
+                  "pm.test('Error about file type', () => {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.message).to.include('Unsupported file type');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "9A-4: No auth token → 401",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/ocr/receipt",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "receipt", "type": "file", "src": "/path/to/receipt.jpg" }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 401', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "🎙️ Phase 9B — Voice Expense Logging",
+      "item": [
+        {
+          "name": "9B-1: Parse rupees transcript",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/voice/expense",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{authToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"transcript\": \"I paid 420 rupees for groceries yesterday\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test('success true', () => pm.expect(body.success).to.be.true);",
+                  "pm.test('draft has amount', () => pm.expect(body.data.draft.amount).to.be.a('number'));",
+                  "pm.test('draft has category', () => pm.expect(body.data.draft.category).to.be.a('string'));",
+                  "pm.test('draft has description', () => pm.expect(body.data.draft.description).to.be.a('string'));",
+                  "pm.test('amount is 420', () => pm.expect(body.data.draft.amount).to.equal(420));",
+                  "pm.test('category is groceries', () => pm.expect(body.data.draft.category).to.equal('groceries'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "9B-2: Dinner expense with dollar amount",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/voice/expense",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{authToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"transcript\": \"We spent $35 on dinner at the Italian restaurant last Friday\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test('category is food related', () => {",
+                  "  const cat = body.data.draft.category;",
+                  "  pm.expect(['food & dining', 'other']).to.include(cat);",
+                  "});",
+                  "pm.test('amount is 35', () => pm.expect(body.data.draft.amount).to.equal(35));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "9B-3: Missing transcript field → 400",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/voice/expense",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{authToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 400', () => pm.response.to.have.status(400));",
+                  "pm.test('error mentions transcript', () => {",
+                  "  pm.expect(pm.response.json().message).to.include('transcript');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "9B-4: Empty string transcript → 400",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/voice/expense",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{authToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"transcript\": \"   \"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 400', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "9B-5: No auth → 401",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/voice/expense",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"transcript\": \"paid 100 for food\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 401', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "🧠 Phase 9C — AI Insights",
+      "item": [
+        {
+          "name": "9C-1: Get insights for circle",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/circles/{{circleId}}/insights",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{authToken}}" }
+            ]
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test('success true', () => pm.expect(body.success).to.be.true);",
+                  "pm.test('insights is array', () => pm.expect(body.data.insights).to.be.an('array'));",
+                  "pm.test('3-10 insights', () => {",
+                  "  const n = body.data.insights.length;",
+                  "  pm.expect(n).to.be.at.least(1);",
+                  "  pm.expect(n).to.be.at.most(10);",
+                  "});",
+                  "pm.test('insights are strings', () => {",
+                  "  body.data.insights.forEach(i => pm.expect(i).to.be.a('string'));",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "9C-2: Force refresh (bypass cache)",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/circles/{{circleId}}/insights?refresh=true",
+              "query": [{ "key": "refresh", "value": "true" }]
+            },
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{authToken}}" }
+            ]
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('cached is false', () => {",
+                  "  pm.expect(pm.response.json().data.cached).to.be.false;",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "9C-3: Invalid circle ID → 404 or 403",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/circles/00000000-0000-0000-0000-000000000000/insights",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{authToken}}" }
+            ]
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('4xx error', () => {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([403, 404]);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "9C-4: No auth → 401",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/circles/{{circleId}}/insights"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 401', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "⚠️ Phase 9D — Conflict Prediction",
+      "item": [
+        {
+          "name": "9D-1: Get conflict prediction for circle",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/circles/{{circleId}}/conflicts",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{authToken}}" }
+            ]
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test('success true', () => pm.expect(body.success).to.be.true);",
+                  "pm.test('riskLevel is valid', () => {",
+                  "  pm.expect(['LOW', 'MEDIUM', 'HIGH']).to.include(body.data.riskLevel);",
+                  "});",
+                  "pm.test('reasons is array', () => pm.expect(body.data.reasons).to.be.an('array'));",
+                  "pm.test('ruleBreakdown present', () => pm.expect(body.data.ruleBreakdown).to.be.an('object'));",
+                  "pm.test('evaluatedAt present', () => pm.expect(body.data.evaluatedAt).to.be.a('string'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "9D-2: Verify rule breakdown structure",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/circles/{{circleId}}/conflicts",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{authToken}}" }
+            ]
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const breakdown = pm.response.json().data.ruleBreakdown;",
+                  "pm.test('R1 fairnessScoreLow present', () => pm.expect(breakdown.fairnessScoreLow).to.be.an('object'));",
+                  "pm.test('R2 choreCompletionLow present', () => pm.expect(breakdown.choreCompletionLow).to.be.an('object'));",
+                  "pm.test('R3 contributionImbalance present', () => pm.expect(breakdown.contributionImbalance).to.be.an('object'));",
+                  "pm.test('each rule has triggered bool', () => {",
+                  "  Object.values(breakdown).forEach(r => pm.expect(r.triggered).to.be.a('boolean'));",
+                  "});",
+                  "pm.test('each rule has reasons array', () => {",
+                  "  Object.values(breakdown).forEach(r => pm.expect(r.reasons).to.be.an('array'));",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "9D-3: Invalid circle → 404 or 403",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/circles/00000000-0000-0000-0000-000000000000/conflicts",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{authToken}}" }
+            ]
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('4xx error', () => {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([403, 404]);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "9D-4: No auth → 401",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/circles/{{circleId}}/conflicts"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 401', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
