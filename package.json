@@ -1,0 +1,25 @@
+{
+  "name": "splitcircle",
+  "private": true,
+  "version": "1.0.0",
+  "description": "SplitCircle - Shared Living Intelligence Platform (monorepo root)",
+  "workspaces": [
+    "backend",
+    "frontend"
+  ],
+  "overrides": {
+    "react": "18.3.1",
+    "react-dom": "18.3.1"
+  },
+  "scripts": {
+    "dev": "node scripts/dev.mjs",
+    "lint": "npm run lint:backend && npm run lint:frontend",
+    "build": "npm run build --workspace=frontend && node -e \"import('./backend/src/app.js').then(() => console.log('backend app import ok'))\"",
+    "dev:backend": "npm run dev --workspace=backend",
+    "dev:frontend": "npm run dev --workspace=frontend",
+    "lint:backend": "npm run lint --workspace=backend",
+    "lint:frontend": "npm run lint --workspace=frontend",
+    "format:backend": "npm run format --workspace=backend",
+    "format:frontend": "npm run format --workspace=frontend"
+  }
+}

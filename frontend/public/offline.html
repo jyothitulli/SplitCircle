@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SplitCircle — Offline</title>
+    <style>
+      :root { --green: #1F4D3A; --copper: #B87333; --cream: #FAF7F2; --ink: #1C1C1C; --muted: #6f6860; }
+      @media (prefers-color-scheme: dark) {
+        :root { --bg: #0d110f; --surface: #131815; --ink: #f0eee8; --muted: #a39e94; --cream: #0d110f; }
+      }
+      * { box-sizing: border-box; margin: 0; padding: 0; }
+      body {
+        font-family: 'Inter', system-ui, sans-serif;
+        background: var(--cream, #FAF7F2);
+        color: var(--ink, #1c1c1c);
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 1.5rem;
+        padding: 2rem;
+        text-align: center;
+      }
+      .icon-wrap {
+        width: 72px; height: 72px;
+        background: var(--green);
+        border-radius: 20px;
+        display: flex; align-items: center; justify-content: center;
+        margin: 0 auto;
+        box-shadow: 0 20px 50px -20px rgba(31,77,58,0.5);
+      }
+      h1 { font-size: 1.75rem; font-weight: 700; margin-top: 0.5rem; }
+      p { color: var(--muted, #6f6860); max-width: 360px; line-height: 1.6; }
+      .btn {
+        margin-top: 0.5rem;
+        display: inline-flex; align-items: center; gap: 0.5rem;
+        background: var(--green); color: white;
+        padding: 0.75rem 1.5rem; border-radius: 16px;
+        font-weight: 600; font-size: 0.9rem;
+        cursor: pointer; border: none;
+        box-shadow: 0 12px 30px -14px rgba(31,77,58,0.6);
+        text-decoration: none;
+        transition: opacity 0.2s;
+      }
+      .btn:hover { opacity: 0.88; }
+      .pill {
+        display: inline-block;
+        background: rgba(31,77,58,0.1);
+        color: var(--green);
+        border-radius: 999px;
+        padding: 0.3rem 0.9rem;
+        font-size: 0.75rem;
+        font-weight: 600;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="icon-wrap">
+      <svg width="36" height="36" viewBox="0 0 24 24" fill="none">
+        <circle cx="9" cy="9" r="6.2" stroke="white" stroke-width="1.8"/>
+        <circle cx="15" cy="15" r="6.2" stroke="#E8D8C4" stroke-width="1.8"/>
+      </svg>
+    </div>
+    <span class="pill">Offline</span>
+    <h1>You're offline</h1>
+    <p>SplitCircle needs a connection to sync your expenses and balances. Check your internet and try again.</p>
+    <a class="btn" href="/" onclick="window.location.reload(); return false;">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+        <path d="M1 4v6h6M23 20v-6h-6"/>
+        <path d="M20.5 9A9 9 0 0 0 5.3 5.3L1 10M23 14l-4.3 4.7A9 9 0 0 1 3.5 15"/>
+      </svg>
+      Try again
+    </a>
+  </body>
+</html>

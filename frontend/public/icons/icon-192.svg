@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192" width="192" height="192">
+  <!-- Background -->
+  <rect width="192" height="192" rx="40" fill="#1F4D3A"/>
+  <!-- SplitCircle mark: two overlapping circles -->
+  <circle cx="80" cy="88" r="40" fill="none" stroke="white" stroke-width="9" opacity="0.95"/>
+  <circle cx="112" cy="104" r="40" fill="none" stroke="#E8D8C4" stroke-width="9" opacity="0.85"/>
+  <!-- Small accent dot at top -->
+  <circle cx="96" cy="32" r="8" fill="#B87333"/>
+</svg>
