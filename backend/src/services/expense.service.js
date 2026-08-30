@@ -66,6 +66,20 @@ function assertUsersAreMembers(userIds, memberIds) {
   }
 }
 
+// Only the person who paid the expense, or a circle OWNER/ADMIN, may edit or
+// delete it. `membership` is the caller's own Member row (has `.role`).
+function assertCanModifyExpense(membership, expensePaidById, userId) {
+  const isPayer = expensePaidById === userId;
+  const isPrivileged = membership.role === 'OWNER' || membership.role === 'ADMIN';
+
+  if (!isPayer && !isPrivileged) {
+    throw new AppError(
+      'Only the person who paid this expense, or a circle owner/admin, can modify it',
+      403
+    );
+  }
+}
+
 function computeShares(splitMethod, amount, participants) {
   let shares;
 
@@ -156,16 +170,18 @@ export async function getExpenseById(userId, circleId, expenseId) {
 }
 
 export async function updateExpense(userId, circleId, expenseId, input) {
-  await requireMembership(userId, circleId);
+  const membership = await requireMembership(userId, circleId);
 
   const existing = await prisma.expense.findFirst({
     where: { id: expenseId, circleId },
-    select: { id: true },
+    select: { id: true, paidById: true },
   });
 
   if (!existing) {
     throw new AppError('Expense not found', 404);
   }
+
+  assertCanModifyExpense(membership, existing.paidById, userId);
 
   const memberIds = await getCircleMemberIds(circleId);
   const paidById = input.paidById ?? userId;
@@ -204,16 +220,18 @@ export async function updateExpense(userId, circleId, expenseId, input) {
 }
 
 export async function deleteExpense(userId, circleId, expenseId) {
-  await requireMembership(userId, circleId);
+  const membership = await requireMembership(userId, circleId);
 
   const existing = await prisma.expense.findFirst({
     where: { id: expenseId, circleId },
-    select: { id: true },
+    select: { id: true, paidById: true },
   });
 
   if (!existing) {
     throw new AppError('Expense not found', 404);
   }
+
+  assertCanModifyExpense(membership, existing.paidById, userId);
 
   await prisma.expense.delete({ where: { id: expenseId } });
 }

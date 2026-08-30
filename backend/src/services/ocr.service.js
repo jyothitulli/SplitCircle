@@ -1,10 +1,25 @@
 import { Readable } from 'stream';
 import { createWorker } from 'tesseract.js';
 import cloudinary from '../config/cloudinary.js';
+import { env } from '../config/env.js';
 import { AppError } from '../utils/AppError.js';
 import logger from '../utils/logger.js';
 
+function assertCloudinaryConfigured() {
+  const { CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, CLOUDINARY_API_SECRET } = env;
+  if (!CLOUDINARY_CLOUD_NAME || !CLOUDINARY_API_KEY || !CLOUDINARY_API_SECRET) {
+    throw new AppError(
+      'Receipt scanning is not configured on this server: CLOUDINARY_CLOUD_NAME, ' +
+        'CLOUDINARY_API_KEY, and CLOUDINARY_API_SECRET must be set in backend/.env. ' +
+        'Sign up at cloudinary.com (free tier) and copy the values from your dashboard.',
+      503
+    );
+  }
+}
+
 export async function uploadReceiptToCloudinary(buffer, originalname) {
+  assertCloudinaryConfigured();
+
   return new Promise((resolve, reject) => {
     const uploadStream = cloudinary.uploader.upload_stream(
       {

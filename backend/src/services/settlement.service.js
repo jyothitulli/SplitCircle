@@ -235,28 +235,18 @@ export async function optimizeSettlements(userId, circleId) {
  * Marks a specific settlement as completed.
  */
 export async function paySettlement(userId, settlementId) {
-  // Fetch settlement with its circle membership check
   const settlement = await prisma.settlement.findUnique({
     where: { id: settlementId },
-    include: {
-      circle: {
-        include: {
-          members: {
-            select: { userId: true },
-          },
-        },
-      },
-    },
   });
 
   if (!settlement) {
     throw new AppError('Settlement not found', 404);
   }
 
-  // Ensure the calling user is part of the circle
-  const isMember = settlement.circle.members.some((m) => m.userId === userId);
-  if (!isMember) {
-    throw new AppError('You are not a member of this circle', 403);
+  // Only the debtor on this specific settlement may mark it as paid —
+  // being a member of the circle is not enough.
+  if (settlement.fromUserId !== userId) {
+    throw new AppError('Only the person who owes this settlement can mark it as paid', 403);
   }
 
   // Ensure the settlement is not already completed

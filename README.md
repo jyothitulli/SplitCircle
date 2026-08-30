@@ -6,11 +6,26 @@
 
 ## Quick Start
 
+### Database (required first)
+
+SplitCircle's Prisma schema targets PostgreSQL only (it uses `@db.Uuid` and
+`Decimal` column types that SQLite doesn't support) — you need a real
+Postgres instance even for local development. The fastest way to get one:
+
+```bash
+docker run --name splitcircle-db -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=splitcircle -p 5432:5432 -d postgres
+```
+
+Then set `DATABASE_URL` in `backend/.env` to something like
+`postgresql://postgres:postgres@localhost:5432/splitcircle`.
+
 ### Backend
 
 ```bash
 cd backend
 npm install
+cp .env.example .env   # then fill in DATABASE_URL, JWT_SECRET, etc.
+npx prisma migrate dev
 npm run dev        # Starts on http://localhost:4000
 ```
 
@@ -36,7 +51,7 @@ npm run dev        # Starts on http://localhost:5173
 | Animation | Framer Motion throughout |
 | Charts | Recharts (AreaChart, BarChart, RadarChart) |
 | Backend | Node.js + Express + Prisma |
-| DB | SQLite (dev) / PostgreSQL (prod) |
+| DB | PostgreSQL (required for dev and prod — see Quick Start below) |
 | AI | Google Gemini (insights + conflict prediction) |
 | OCR | Tesseract.js + Cloudinary |
 

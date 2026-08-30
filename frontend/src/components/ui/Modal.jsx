@@ -1,5 +1,6 @@
 import { AnimatePresence, motion } from 'framer-motion';
 import { useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { IconClose } from '../icons';
 
 const sizes = { sm: 'max-w-sm', md: 'max-w-lg', lg: 'max-w-2xl', xl: 'max-w-4xl' };
@@ -16,7 +17,7 @@ export function Modal({ isOpen, onClose, title, subtitle, children, size = 'md' 
     };
   }, [isOpen, onClose]);
 
-  return (
+  return createPortal(
     <AnimatePresence>
       {isOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true">
@@ -54,6 +55,7 @@ export function Modal({ isOpen, onClose, title, subtitle, children, size = 'md' 
           </motion.div>
         </div>
       )}
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body
   );
 }
