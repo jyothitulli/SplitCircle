@@ -117,6 +117,13 @@ CLOUDINARY_API_SECRET="your-api-secret"
 VITE_API_URL=http://localhost:4000
 ```
 
+> **Note on OCR:** the receipt-scanning endpoint (`POST /api/ocr/receipt`) uses
+> the English trained-data file bundled at `backend/eng.traineddata` — it does
+> **not** call any external OCR API and needs no OCR-specific API key. It
+> does still need Cloudinary configured (above) to store the uploaded receipt
+> image. See `OCR_TROUBLESHOOTING.md` for the full contract and common
+> deployment pitfalls (Render/Vercel).
+
 ---
 
 ## Pages

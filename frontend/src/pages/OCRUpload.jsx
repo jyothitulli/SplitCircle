@@ -73,9 +73,15 @@ function DropZone({ onFile }) {
 }
 
 function DraftResult({ draft }) {
+  const currency = draft.currency || 'INR';
+  const symbol = currency === 'INR' ? 'Rs' : currency === 'USD' ? '$' : currency === 'EUR' ? '€' : currency === 'GBP' ? '£' : currency;
+  const money = (value) => (value || value === 0 ? `${symbol} ${Number(value).toFixed(2)}` : 'Not detected');
+
   const fields = [
     { label: 'Merchant', value: draft.merchant || 'Not detected' },
-    { label: 'Total amount', value: draft.amount || draft.totalAmount ? `Rs ${Number(draft.amount || draft.totalAmount).toFixed(2)}` : 'Not detected' },
+    { label: 'Total amount', value: money(draft.amount ?? draft.totalAmount) },
+    { label: 'Subtotal', value: money(draft.subtotal) },
+    { label: 'Tax / GST', value: money(draft.tax) },
     { label: 'Date', value: draft.date || 'Not detected' },
     { label: 'Confidence', value: `${Math.round((draft.confidence || 0) * 100)}%` },
   ];
@@ -98,6 +104,20 @@ function DraftResult({ draft }) {
           </div>
         </div>
       </Card>
+
+      {draft.items?.length > 0 && (
+        <div className="rounded-2xl border border-border bg-surface-2 p-4">
+          <p className="mb-3 text-sm font-medium text-ink">Detected items ({draft.items.length})</p>
+          <ul className="space-y-1.5 text-sm text-muted">
+            {draft.items.map((item, index) => (
+              <li key={`${item.name}-${index}`} className="flex items-center justify-between gap-3">
+                <span className="truncate">{item.name}{item.quantity ? ` × ${item.quantity}` : ''}</span>
+                <span className="font-numeric text-ink">{symbol} {Number(item.total).toFixed(2)}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       {draft.warnings?.length > 0 && (
         <div className="rounded-2xl border border-warning-200 bg-warning-50 p-4 text-sm text-warning-700">

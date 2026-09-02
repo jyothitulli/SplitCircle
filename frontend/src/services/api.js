@@ -3,6 +3,10 @@ import axios from 'axios';
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL || 'http://localhost:4000',
   withCredentials: true,
+  // Receipt OCR can legitimately take longer than a typical API call
+  // (image upload + preprocessing + text recognition), so this is generous
+  // enough for that while still failing fast on a genuinely stuck request.
+  timeout: 60_000,
 });
 
 api.interceptors.request.use((config) => {
@@ -74,11 +78,22 @@ export const insightsAPI = {
 };
 
 export const ocrAPI = {
-  scanReceipt: (formData) =>
-    api.post('/api/ocr/receipt', formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
+  // IMPORTANT: do not set a Content-Type header here. When the browser (or
+  // axios) builds a multipart/form-data body itself, it generates a unique
+  // `boundary` parameter and puts it in the Content-Type header for you
+  // (e.g. `multipart/form-data; boundary=----WebKitFormBoundary...`).
+  // Overriding it with a bare 'multipart/form-data' string removes that
+  // boundary, which breaks the server's multipart parser (multer/busboy)
+  // and can otherwise fail unpredictably.
+  scanReceipt: (formData) => api.post('/api/ocr/receipt', formData),
   createExpense: (payload) => api.post('/api/ocr/create-expense', payload),
 };
 
 export const voiceAPI = {
   logExpense: (transcript) => api.post('/api/voice/expense', { transcript }),
+};
+
+// Unauthenticated — safe to call from the public landing page.
+export const publicAPI = {
+  getStats: () => api.get('/api/public/stats'),
 };

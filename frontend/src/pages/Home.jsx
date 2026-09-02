@@ -5,6 +5,7 @@ import { CursorGlow } from '../components/effects/CursorGlow';
 import { TiltCard, Magnetic } from '../components/effects/Interactive';
 import { InstallAppButton } from '../components/ui/InstallAppButton';
 import { ThemeToggle } from '../components/ui/ThemeToggle';
+import { CommunityStats } from '../components/home/CommunityStats';
 import { useAuth } from '../context/AuthContext';
 import {
   IconArrowRight, IconCircles, IconScan,
@@ -97,6 +98,8 @@ export default function Home() {
           </Link>
           <p className="text-sm text-faint sm:ml-2">Free to use &mdash; no credit card.</p>
         </motion.div>
+
+        <CommunityStats />
       </section>
 
       {/* Feature grid */}

@@ -16,6 +16,9 @@ import ocrRoutes from './routes/ocr.routes.js';
 import voiceRoutes from './routes/voice.routes.js';
 import circlePhase9Routes from './routes/circle.phase9.routes.js';
 
+// Public, unauthenticated landing-page stats (aggregate counts only)
+import publicRoutes from './routes/public.routes.js';
+
 const app = express();
 
 // Security headers
@@ -54,6 +57,7 @@ app.use('/api/settlements', settlementRoutes);
 app.use('/api/chores/assignments', choreAssignmentRouter);
 app.use('/api/ocr', ocrRoutes);                // Phase 9A (OCR receipt scanning)
 app.use('/api/voice', voiceRoutes);            // Phase 9B (voice expense logging)
+app.use('/api/public', publicRoutes);          // Unauthenticated landing-page stats
 
 // 404 + error handlers (must be last)
 app.use(notFoundHandler);
